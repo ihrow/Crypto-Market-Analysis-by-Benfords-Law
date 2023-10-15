@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev-node": "tsx watch src/backend/index.ts",
-    "build": "vue-tsc && vite build",
+    "build": "vue-tsc && vite build && npm run dev-node",
     "preview": "vite preview"
   },
   "dependencies": {
