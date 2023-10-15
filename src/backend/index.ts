@@ -20,12 +20,34 @@ app.use(
 app.use(router);
 
 function getFirstDigit(price: string): number {
-  // Remove leading zeros and the decimal point (if present)
   const normalizedPrice = price.replace(/^0.|0+/g, "");
   return parseInt(normalizedPrice[0]);
 }
 
-cron.schedule("*/10 * * * * *", async () => {
+async function fetchCoinData(
+  symbol: string[]
+): Promise<SymbolsResponse | null> {
+  try {
+    const URL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${symbol.join(
+      ","
+    )}&tsyms=USDT&api_key=${process.env.VITE_CRYPTOCOMPARE_API_KEY}`;
+    const response = await axios.get(URL);
+    return response.data;
+  } catch (error: any) {
+    console.log("ERROR: " + error.message);
+    return null;
+  }
+}
+
+function updateDatabase(amountOfDigits: any) {
+  for (const digit of amountOfDigits) {
+    axios.put(`http://localhost:5000/api/digits/${digit.digit}`, {
+      amount: digit.amount,
+    });
+  }
+}
+
+cron.schedule("*/5 * * * * *", async () => {
   console.log("Running a task...");
   const amountOfDigits = [
     { digit: 1, amount: 0 },
@@ -40,27 +62,24 @@ cron.schedule("*/10 * * * * *", async () => {
   ];
 
   for (const symbol of symbols) {
-    try {
-      const URL = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${symbol.join(
-        ","
-      )}&tsyms=USDT&api_key=${process.env.VITE_CRYPTOCOMPARE_API_KEY}`;
-      const response = await axios.get(URL);
-      const data = response.data as SymbolsResponse;
-      for (const symbol in data) {
-        const price = data[symbol].USDT.toString();
-        const firstDigit = getFirstDigit(price);
-        amountOfDigits[firstDigit - 1].amount++;
-      }
-    } catch (error: any) {
-      console.log("ERROR: " + error.message);
-    }
+    await fetchCoinData(symbol)
+      .then((data) => {
+        if (data) {
+          for (const key in data) {
+            const digit = getFirstDigit(data[key].USDT.toString());
+            const index = amountOfDigits.findIndex(
+              (digitObj) => digitObj.digit === digit
+            );
+            amountOfDigits[index].amount += 1;
+          }
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
   }
 
-  for (const digit of amountOfDigits) {
-    axios.put(`http://localhost:5000/api/digits/${digit.digit}`, {
-      amount: digit.amount,
-    });
-  }
+  updateDatabase(amountOfDigits);
 });
 
 app.listen(5000, async () => {
