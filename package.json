@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev-node": "tsx watch src/backend/index.ts",
-    "build": "prisma generate && vue-tsc && vite build && npm run dev-node",
+    "dev-node": "tsx watch src/api",
+    "build": "prisma generate && vue-tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
